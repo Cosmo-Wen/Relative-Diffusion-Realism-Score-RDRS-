@@ -23,9 +23,9 @@ def get_color_fidelity_score(image1_path, image2_path):
     hist1 = cv2.calcHist([hsv1], [0, 1, 2], None, bins, ranges)
     hist2 = cv2.calcHist([hsv2], [0, 1, 2], None, bins, ranges)
     
-    # Normalize histograms
-    cv2.normalize(hist1, hist1, 0, 1, cv2.NORM_MINMAX)
-    cv2.normalize(hist2, hist2, 0, 1, cv2.NORM_MINMAX)
+    # Normalize histograms using L1 (sum of elements = 1)
+    cv2.normalize(hist1, hist1, 1, 0, cv2.NORM_L1)
+    cv2.normalize(hist2, hist2, 1, 0, cv2.NORM_L1)
     
     # Intersection
     intersection = cv2.compareHist(hist1, hist2, cv2.HISTCMP_INTERSECT)

@@ -5,24 +5,37 @@ from skimage.feature import graycomatrix, graycoprops
 def get_glcm_features(image_gray):
     """
     Computes GLCM Contrast and Energy.
+    Improved: Averaged over 4 angles for rotational invariance, reduced levels for performance.
     """
-    # Ensure image is uint8
+    # Reducing levels to 64 for speed and robust texture analysis
     if image_gray.dtype != np.uint8:
         image_gray = (image_gray * 255).astype(np.uint8)
     
-    glcm = graycomatrix(image_gray, distances=[5], angles=[0], levels=256, symmetric=True, normed=True)
-    contrast = graycoprops(glcm, 'contrast')[0, 0]
-    energy = graycoprops(glcm, 'energy')[0, 0]
+    img_reduced = (image_gray // 4).astype(np.uint8)
+    
+    # 4 angles: 0, 45, 90, 135 degrees
+    angles = [0, np.pi/4, np.pi/2, 3*np.pi/4]
+    glcm = graycomatrix(img_reduced, distances=[5], angles=angles, levels=64, symmetric=True, normed=True)
+    
+    contrast = np.mean(graycoprops(glcm, 'contrast'))
+    energy = np.mean(graycoprops(glcm, 'energy'))
+    
     return float(contrast), float(energy)
 
 def get_canny_edge_density(image_gray):
     """
     Computes the proportion of pixels classified as structural edges using Canny.
+    Improved: Adaptive thresholding based on median.
     """
     if image_gray.dtype != np.uint8:
         image_gray = (image_gray * 255).astype(np.uint8)
         
-    edges = cv2.Canny(image_gray, 100, 200)
+    v = np.median(image_gray)
+    sigma = 0.33
+    lower = int(max(0, (1.0 - sigma) * v))
+    upper = int(min(255, (1.0 + sigma) * v))
+    
+    edges = cv2.Canny(image_gray, lower, upper)
     density = np.sum(edges > 0) / edges.size
     return float(density)
 
@@ -30,7 +43,6 @@ def get_variance_blur_measure(image_gray):
     """
     Estimates image sharpness by computing the global variance of a Laplacian-filtered image.
     """
-    # Ensure float for Laplacian to avoid overflow/underflow
     laplacian = cv2.Laplacian(image_gray.astype(np.float32), cv2.CV_32F)
     variance = np.var(laplacian)
     return float(variance)
@@ -38,11 +50,17 @@ def get_variance_blur_measure(image_gray):
 def get_mean_spectrum(image_gray):
     """
     Computes the average magnitude of the image's Fourier Transform.
+    Improved: Excludes DC component to focus on high-frequency noise.
     """
-    f_transform = np.fft.fft2(image_gray.astype(np.float32))
-    f_shift = np.fft.fftshift(f_transform)
-    magnitude_spectrum = np.abs(f_shift)
+    # Performance: Use rfft2 for real-valued inputs
+    f_transform = np.fft.rfft2(image_gray.astype(np.float32))
+    magnitude_spectrum = np.abs(f_transform)
+    
+    # Exclude DC component (0,0) and very low frequencies
+    # For simplicity, we just zero out the top-left corner or calculate mean excluding it
+    magnitude_spectrum[0, 0] = 0
     mean_spectrum = np.mean(magnitude_spectrum)
+    
     return float(mean_spectrum)
 
 def extract_all_features(image_path):

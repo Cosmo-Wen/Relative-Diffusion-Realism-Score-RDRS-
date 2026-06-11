@@ -16,9 +16,9 @@ Recreate the project results by following these steps:
    pip install -r requirements.txt
    ```
 
-3. **Run Evaluation:**
+3. **Run Evaluation & Plot:**
    ```bash
-   python main.py --config config.yaml
+   python main.py --config config.yaml --plot
    ```
 
 4. **Run Tests:**
@@ -27,13 +27,15 @@ Recreate the project results by following these steps:
    ```
 
 ## Project Structure
-- `src/`: Core logic (Features, Normalization, Aggregation, Color Fidelity).
+- `src/`: Core logic (Features, Normalization, Aggregation, Color Fidelity, Visualization).
 - `data/`: Image assets (Original and Edited).
 - `tests/`: Unit and integration test suite.
 - `main.py`: Entry point for the pipeline.
 - `config.yaml`: Configuration settings for image paths.
 - `design_choice.md`: Detailed documentation on architectural decisions.
 
-## Metrics
+## Metrics & Features
 - **RDRS Score:** A percentage representing global structural and textural realism.
 - **Color Retention:** A percentage representing thematic color preservation using HSV Histogram Intersection.
+- **Visualization:** Generate pentagon radar charts comparing feature multipliers using the `--plot` flag.
+- **Robustness**: Rotationally invariant GLCM, adaptive edge detection, and DC-filtered spectral analysis.

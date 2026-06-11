@@ -4,8 +4,9 @@ from src.features import extract_all_features
 from src.normalization import get_multipliers
 from src.aggregation import get_rdrs_score
 from src.color_fidelity import get_color_fidelity_score
+from src.visualization import plot_rdrs_pentagon
 
-def run_pipeline(config_path):
+def run_pipeline(config_path, plot=False):
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
     
@@ -34,6 +35,11 @@ def run_pipeline(config_path):
     print("Calculating Color Fidelity score...")
     color_score = get_color_fidelity_score(orig_path, edit_path)
     
+    # 5. Visualization
+    if plot:
+        print("Generating visualization...")
+        plot_rdrs_pentagon(multipliers.copy(), "rdrs_results_plot.png")
+    
     # Breakdown
     labels = ['GLCM_C', 'CED', 'GLCM_E', 'VBM', 'MS']
     print("\nFeature Degradation Breakdown (Multipliers):")
@@ -48,6 +54,7 @@ def run_pipeline(config_path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Relative Diffusion Realism Score (RDRS) Pipeline")
     parser.add_argument("--config", type=str, default="config.yaml", help="Path to config.yaml")
+    parser.add_argument("--plot", action="store_true", help="Generate RDRS pentagon plot")
     args = parser.parse_args()
     
-    run_pipeline(args.config)
+    run_pipeline(args.config, args.plot)
