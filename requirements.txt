@@ -4,3 +4,5 @@ opencv-python-headless
 pytest
 pyyaml
 matplotlib
+torch
+torchvision
