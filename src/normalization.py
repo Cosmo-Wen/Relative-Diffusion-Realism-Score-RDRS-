@@ -1,3 +1,5 @@
+import math
+
 def calibrate_features(features):
     """
     Applies multiplicative inversion to GLCM Energy, VBM, and MS as per spec.
@@ -5,14 +7,14 @@ def calibrate_features(features):
     calibrated = {}
     
     # Linear features
-    calibrated['glcm_c'] = features['glcm_c']
+
+    calibrated['ms'] = features['ms']
     calibrated['ced'] = features['ced']
     
-    # Inverted features (with epsilon to avoid division by zero)
-    eps = 1e-10
-    calibrated['glcm_e'] = 1.0 / (features['glcm_e'] + eps)
-    calibrated['vbm'] = 1.0 / (features['vbm'] + eps)
-    calibrated['ms'] = 1.0 / (features['ms'] + eps)
+    calibrated['glcm_e'] = math.sqrt(features['glcm_e'])
+    calibrated['vbm'] = math.sqrt(features['vbm'])
+    calibrated['glcm_c'] = math.sqrt(features['glcm_c'])
+
     
     return calibrated
 

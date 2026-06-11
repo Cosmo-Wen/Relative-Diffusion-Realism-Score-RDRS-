@@ -29,7 +29,7 @@ def run_pipeline(config_path, plot=False):
     
     # Tier 1: Structural
     print("Calculating Tier 1: Structural Realism...")
-    t1_score, multipliers = calculate_tier1_score(orig_path, edit_path)
+    (t1_score, t1_index), multipliers = calculate_tier1_score(orig_path, edit_path)
     
     # Tier 2: Perceptual (Placeholder)
     t2_score = calculate_tier2_score(orig_path, edit_path)
@@ -53,7 +53,7 @@ def run_pipeline(config_path, plot=False):
     
     # Output
     print(f"\nTier Scores:")
-    print(f"  - Tier 1 (Structural): {t1_score:.2f}%")
+    print(f"  - Tier 1 (Structural): {t1_score:.2f}% (Style Index: {t1_index:.4f})")
     print(f"  - Tier 2 (Perceptual): {t2_score:.2f}%")
     print(f"  - Tier 3 (Semantic):   {t3_score:.2f}%")
     print(f"  - Tier 4 (Style):      {t4_score:.2f}%")

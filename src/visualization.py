@@ -5,13 +5,14 @@ def plot_rdrs_pentagon(multipliers, output_path="rdrs_plot.png"):
     """
     Plots the RDRS pentagon (radar chart).
     """
-    labels = ['GLCM_C', 'CED', 'GLCM_E', 'VBM', 'MS']
+    labels = ['MS', 'GLCM_C', 'CED', 'GLCM_E', 'VBM']
     num_vars = len(labels)
 
     # Compute angle for each axis
     angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
 
     # The plot is circular, so we need to "complete the loop"
+    multipliers = multipliers[-1:] + multipliers[:-1] 
     multipliers += multipliers[:1]
     angles += angles[:1]
 
