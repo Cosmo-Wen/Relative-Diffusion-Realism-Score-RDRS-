@@ -2,13 +2,11 @@ import yaml
 import argparse
 from src.rdrs_core import calculate_tier1_score
 from src.raise_perceptual import calculate_tier2_score
+from src.real_semantic import calculate_tier3_score
 from src.color_fidelity import get_color_fidelity_score
 from src.visualization import plot_rdrs_pentagon
 
 # Placeholders for future tiers
-def calculate_tier3_score(orig_path, edit_path):
-    return 0.0
-
 def calculate_tier4_score(orig_path, edit_path):
     return 0.0
 
