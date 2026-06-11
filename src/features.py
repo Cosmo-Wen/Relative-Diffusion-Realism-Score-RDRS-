@@ -85,3 +85,41 @@ def extract_all_features(image_path):
         'vbm': vbm,
         'ms': ms
     }
+
+def extract_real_features(image_path):
+    """
+    Loads an image and extracts all 5 RDRS features.
+    """
+    img = cv2.imread(image_path)
+    if img is None:
+        raise ValueError(f"Could not read image at {image_path}")
+    
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    
+    contrast, energy = get_glcm_features(gray)
+    vbm = get_variance_blur_measure(gray)
+    ms = get_mean_spectrum(gray)
+    
+    return {
+        'glcm_e': energy,
+        'vbm': vbm,
+        'ms': ms
+    }
+
+def extract_style_features(image_path):
+    """
+    Loads an image and extracts all 5 RDRS features.
+    """
+    img = cv2.imread(image_path)
+    if img is None:
+        raise ValueError(f"Could not read image at {image_path}")
+    
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    
+    contrast, energy = get_glcm_features(gray)
+    ced = get_canny_edge_density(gray)
+    
+    return {
+        'glcm_c': contrast,
+        'ced': ced,
+    }

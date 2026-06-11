@@ -13,6 +13,7 @@ def run_pipeline(config_path, plot=False):
         config = yaml.safe_load(f)
     
     orig_path = config['images']['original']
+    style_path = config['images']['style']
     edit_path = config['images']['edited']
     weights = config.get('weights', {})
     
@@ -23,13 +24,14 @@ def run_pipeline(config_path, plot=False):
     
     print(f"--- UDRS Evaluation Pipeline ---")
     print(f"Original: {orig_path}")
+    print(f"Style:    {style_path}")
     print(f"Edited:   {edit_path}")
     print(f"Weights:  T1={w1}, T2={w2}, T3={w3}, T4={w4}")
     print(f"--------------------------------")
     
     # Tier 1: Structural
     print("Calculating Tier 1: Structural Realism...")
-    (t1_score, t1_index), multipliers = calculate_tier1_score(orig_path, edit_path)
+    (t1_score), multipliers = calculate_tier1_score(orig_path, edit_path, style_path)
     
     # Tier 2: Perceptual (Placeholder)
     t2_score = calculate_tier2_score(orig_path, edit_path)
@@ -53,7 +55,7 @@ def run_pipeline(config_path, plot=False):
     
     # Output
     print(f"\nTier Scores:")
-    print(f"  - Tier 1 (Structural): {t1_score:.2f}% (Style Index: {t1_index:.4f})")
+    print(f"  - Tier 1 (Structural): {t1_score:.2f}%")
     print(f"  - Tier 2 (Perceptual): {t2_score:.2f}%")
     print(f"  - Tier 3 (Semantic):   {t3_score:.2f}%")
     print(f"  - Tier 4 (Style):      {t4_score:.2f}%")
