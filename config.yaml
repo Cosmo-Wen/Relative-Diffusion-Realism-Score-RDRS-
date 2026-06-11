@@ -1,4 +1,12 @@
-# RDRS Configuration
+# UDRS Configuration
+
 images:
   original: "data/original/source.png"
   edited: "data/edited/edited.png"
+
+# Weighted Aggregation (Sum should ideally be 1.0)
+weights:
+  tier1_structural: 1.0
+  tier2_perceptual: 0.0
+  tier3_semantic: 0.0
+  tier4_style: 0.0
