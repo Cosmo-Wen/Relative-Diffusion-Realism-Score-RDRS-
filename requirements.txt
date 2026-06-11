@@ -6,3 +6,4 @@ pyyaml
 matplotlib
 torch
 torchvision
+open-clip-torch

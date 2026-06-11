@@ -6,7 +6,7 @@ images:
 
 # Weighted Aggregation (Sum should ideally be 1.0)
 weights:
-  tier1_structural: 0.4
-  tier2_perceptual: 0.4
+  tier1_structural: 0.3
+  tier2_perceptual: 0.3
   tier3_semantic: 0.2
-  tier4_style: 0.0
+  tier4_style: 0.2
