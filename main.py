@@ -4,7 +4,6 @@ from src.rdrs_core import calculate_tier1_score
 from src.raise_perceptual import calculate_tier2_score
 from src.real_semantic import calculate_tier3_score
 from src.real_style import calculate_tier4_score
-from src.color_fidelity import get_color_fidelity_score
 from src.visualization import plot_rdrs_pentagon
 
 # Unified Pipeline
@@ -17,10 +16,10 @@ def run_pipeline(config_path, plot=False):
     edit_path = config['images']['edited']
     weights = config.get('weights', {})
     
-    w1 = weights.get('tier1_structural', 0.25)
-    w2 = weights.get('tier2_perceptual', 0.25)
-    w3 = weights.get('tier3_semantic', 0.25)
-    w4 = weights.get('tier4_style', 0.25)
+    w1 = weights.get('tier1_structural', 0)
+    w2 = weights.get('tier2_perceptual', 0)
+    w3 = weights.get('tier3_semantic', 0)
+    w4 = weights.get('tier4_style', 0)
     
     print(f"--- UDRS Evaluation Pipeline ---")
     print(f"Original: {orig_path}")
@@ -31,27 +30,37 @@ def run_pipeline(config_path, plot=False):
     
     # Tier 1: Structural
     print("Calculating Tier 1: Structural Realism...")
-    (t1_score), multipliers = calculate_tier1_score(orig_path, edit_path, style_path)
-    
+    if w1 > 0:
+        t1_score, multipliers = calculate_tier1_score(orig_path, edit_path, style_path)
+    else:
+        t1_score = 0
+        multipliers = {}
+
     # Tier 2: Perceptual (Placeholder)
-    t2_score = calculate_tier2_score(orig_path, edit_path)
+    if w2 > 0:
+        t2_score = calculate_tier2_score(orig_path, edit_path)
+    else:
+        t2_score = 0
     
     # Tier 3: Semantic (Placeholder)
-    t3_score = calculate_tier3_score(orig_path, edit_path)
+    if w3 > 0:
+        t3_score = calculate_tier3_score(orig_path, edit_path)
+    else:
+        t3_score = 0
     
     # Tier 4: Style (Placeholder)
-    t4_score = calculate_tier4_score(orig_path, edit_path)
+    if w4 > 0:
+        t4_score = calculate_tier4_score(orig_path, edit_path)
+    else:
+        t4_score = 0
     
     # Weighted Aggregation
     udrs_score = (w1 * t1_score) + (w2 * t2_score) + (w3 * t3_score) + (w4 * t4_score)
     
-    # Color Fidelity (Secondary Metric)
-    color_score = get_color_fidelity_score(orig_path, edit_path)
-    
     # Visualization
     if plot:
         print("Generating visualization...")
-        plot_rdrs_pentagon(multipliers.copy(), "udrs_tier1_plot.png")
+        plot_rdrs_pentagon(multipliers.copy(), final_score=t1_score, output_path="udrs_tier1_plot.png")
     
     # Output
     print(f"\nTier Scores:")
@@ -62,7 +71,6 @@ def run_pipeline(config_path, plot=False):
     
     print(f"\n================================")
     print(f"FINAL UDRS SCORE:     {udrs_score:.2f}%")
-    print(f"COLOR RETENTION:      {color_score:.2f}%")
     print(f"================================")
 
 if __name__ == "__main__":

@@ -8,39 +8,55 @@ class StyleClassifier:
         self.tokenizer = open_clip.get_tokenizer(model_name)
         self.model.eval()
         
-        # Labels for zero-shot classification
-        self.labels = ["a photo", "an illustration", "a painting"]
-        self.text_tokens = self.tokenizer(self.labels)
+        # Ensembled labels to catch diffusion artifacts
+        self.pos_labels = ["a photorealistic portrait", "a raw photograph"]
+        self.neg_labels = ["a digital painting", "a 3D CGI render", "an illustration"]
+        
+        self.pos_tokens = self.tokenizer(self.pos_labels)
+        self.neg_tokens = self.tokenizer(self.neg_labels)
 
     @torch.no_grad()
-    def get_style_score(self, image_path):
+    def get_style_logits(self, image_path):
         """
-        Returns the probability that the image is a "photo" vs "illustration/painting".
+        Returns the raw cosine similarity (logits) for Photo vs Fake.
         """
         image = self.preprocess(Image.open(image_path)).unsqueeze(0)
-        
         image_features = self.model.encode_image(image)
-        text_features = self.model.encode_text(self.text_tokens)
-        
-        # Normalize features
         image_features /= image_features.norm(dim=-1, keepdim=True)
-        text_features /= text_features.norm(dim=-1, keepdim=True)
         
-        # Cosine similarity as logits
-        logit_scale = self.model.logit_scale.exp()
-        logits_per_image = logit_scale * image_features @ text_features.t()
+        # Encode text
+        pos_feat = self.model.encode_text(self.pos_tokens)
+        neg_feat = self.model.encode_text(self.neg_tokens)
+        pos_feat /= pos_feat.norm(dim=-1, keepdim=True)
+        neg_feat /= neg_feat.norm(dim=-1, keepdim=True)
         
-        # Softmax to get probabilities
-        probs = logits_per_image.softmax(dim=-1).cpu().numpy()[0]
+        # Get raw similarities (ignore logit_scale and softmax)
+        pos_sim = (image_features @ pos_feat.t()).mean().item()
+        neg_sim = (image_features @ neg_feat.t()).mean().item()
         
-        # Probability of the first label "a photo"
-        photo_prob = float(probs[0]) * 100.0
-        return photo_prob
+        # The "Style Score" is how much more it looks like a photo than a painting
+        style_margin = pos_sim - neg_sim
+        return style_margin
 
 def calculate_tier4_score(orig_path, edit_path):
-    """
-    Computes Tier 4: Visual Style Fidelity using OpenCLIP zero-shot classification.
-    """
     classifier = StyleClassifier()
-    score = classifier.get_style_score(edit_path)
+    
+    orig_margin = classifier.get_style_logits(orig_path)
+    edit_margin = classifier.get_style_logits(edit_path)
+    
+    # Edge Case: If the original photo somehow scores as an illustration (margin <= 0),
+    # we can't penalize the edit for the original's bad baseline.
+    if orig_margin <= 0:
+        return 100.0 
+        
+    # 2. Perfect Retention: The edit maintained or improved the photorealism.
+    if edit_margin >= orig_margin:
+        return 100.0
+        
+    # Add a smoothing factor to prevent tiny denominators from causing massive drops.
+    # 0.10 represents a "base confidence" in the model.
+    smoothing = 0.10 
+    
+    # Smoothed Ratio
+    score = ((edit_margin + smoothing) / (orig_margin + smoothing)) * 100.0
     return score
