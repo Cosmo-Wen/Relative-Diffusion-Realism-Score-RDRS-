@@ -1,0 +1,4 @@
+# RDRS Configuration
+images:
+  original: "data/original/source.png"
+  edited: "data/edited/edited.png"
