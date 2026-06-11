@@ -1,10 +1,8 @@
-# Relative Diffusion Realism Score (RDRS)
+# Unified Diffusion Realism Score (UDRS)
 
-RDRS is a metric pipeline designed to evaluate the physical realism of diffusion-edited images by benchmarking them against their original counterparts using geometric image statistics.
+UDRS is a multi-tiered evaluation framework designed to assess the physical, perceptual, and semantic realism of images edited via diffusion models. It aggregates four distinct evaluation tiers into a single holistic percentage score.
 
 ## Quickstart (Under 5 Minutes)
-
-Recreate the project results by following these steps:
 
 1. **Activate Environment:**
    ```bash
@@ -16,7 +14,7 @@ Recreate the project results by following these steps:
    pip install -r requirements.txt
    ```
 
-3. **Run Evaluation & Plot:**
+3. **Run Full Pipeline:**
    ```bash
    python main.py --config config.yaml --plot
    ```
@@ -26,16 +24,15 @@ Recreate the project results by following these steps:
    pytest tests/
    ```
 
-## Project Structure
-- `src/`: Core logic (Features, Normalization, Aggregation, Color Fidelity, Visualization).
-- `data/`: Image assets (Original and Edited).
-- `tests/`: Unit and integration test suite.
-- `main.py`: Entry point for the pipeline.
-- `config.yaml`: Configuration settings for image paths.
-- `design_choice.md`: Detailed documentation on architectural decisions.
+## Tiered Evaluation Architecture
+- **Tier 1: Structural Realism**: Low-level physical integrity using the RDRS pentagon model.
+- **Tier 2: Perceptual Realism**: High-level naturalness using ResNet-18 deep features.
+- **Tier 3: Semantic Realism**: Logical and relational integrity (Mocked API).
+- **Tier 4: Style Fidelity**: Visual consistency using OpenCLIP zero-shot classification.
 
-## Metrics & Features
-- **RDRS Score:** A percentage representing global structural and textural realism.
-- **Color Retention:** A percentage representing thematic color preservation using HSV Histogram Intersection.
-- **Visualization:** Generate pentagon radar charts comparing feature multipliers using the `--plot` flag.
-- **Robustness**: Rotationally invariant GLCM, adaptive edge detection, and DC-filtered spectral analysis.
+## Project Structure
+- `src/`: Multi-tiered logic (`rdrs_core.py`, `raise_perceptual.py`, `real_semantic.py`, `real_style.py`).
+- `data/`: Image assets (Original and Edited).
+- `tests/`: Comprehensive unit and integration test suite for all tiers.
+- `main.py`: Unified entry point for the UDRS pipeline.
+- `config.yaml`: Configurable weights and image paths.

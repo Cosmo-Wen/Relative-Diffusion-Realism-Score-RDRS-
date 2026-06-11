@@ -31,7 +31,19 @@ Several mathematical and functional improvements were made to the core pipeline:
 - **Adaptive Canny Thresholding**: Thresholds are now computed dynamically based on the image median, making edge density analysis robust across different lighting and contrast levels.
 - **High-Frequency Spectral Noise**: The Mean Spectrum calculation now excludes the DC component, focusing more precisely on high-frequency noise artifacts typically introduced by diffusion steps.
 - **L1 Histogram Normalization**: Switched from MinMax to L1 normalization in `color_fidelity.py` to ensure histogram intersection represents a valid shared probability distribution.
-- **Visualization Module**: Added `src/visualization.py` to generate radar charts (pentagons), allowing for intuitive visual comparison of the 5 realism features.
-- **Performance Optimizations**: 
-    - Reduced GLCM levels to 64 for a 4x speedup in texture analysis.
-    - Switched to `np.fft.rfft2` for faster spectral analysis on real-valued images.
+## 7. Unified Diffusion Realism Score (UDRS) Architecture
+
+The project has been upgraded to a multi-tiered evaluation framework:
+
+- **Tier 1: Structural Realism (RDRS Core)**: Handcrafted image statistics (GLCM, Canny, FFT) aggregated via a pentagon model.
+- **Tier 2: Deep Perceptual Realism**: Uses a pre-trained ResNet-18 model to extract 512D embeddings from the global average pooling layer. Similarity is measured via Cosine Similarity.
+- **Tier 3: Semantic & Relational Realism**: A modular VQA-based evaluation. Currently implemented with a `MockVQABackend` to simulate cloud API responses for attribute and relationship checks without loading local VLMs.
+- **Tier 4: Visual Style Fidelity**: Uses the `OpenCLIP` library (ViT-B-32) for zero-shot style classification. It measures the probability that the edited image maintains a "photo" style versus becoming an "illustration" or "painting".
+
+## 8. Weighted Aggregation
+
+The final UDRS score is calculated as a weighted sum of all implemented tiers. Weights are fully configurable via `config.yaml`, allowing for flexible evaluation depending on compute availability and use-case priority.
+
+## 9. Dependency Management
+- **PyTorch & Torchvision**: Added for ResNet-18 (Tier 2).
+- **OpenCLIP**: Added for zero-shot style classification (Tier 4).
