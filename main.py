@@ -7,7 +7,7 @@ from src.raise_perceptual import calculate_tier2_score
 from src.real_semantic import calculate_tier3_score
 from src.real_style import calculate_tier4_score
 from src.visualization import plot_rdrs_pentagon
-from src.segmentation import MockSegmenter
+from src.segmentation import DifferenceSegmenter
 
 def evaluate_single_triplet(orig_path, edit_path, style_path, weights, segmenter):
     """
@@ -59,8 +59,8 @@ def run_pipeline(config_path):
     use_mask = settings.get('use_mask', True)
     weights = config.get('weights', {})
     
-    # Initialize Segmenter
-    segmenter = MockSegmenter() if use_mask else None
+    # Initialize Segmenter (DifferenceSegmenter is robust for PoC)
+    segmenter = DifferenceSegmenter() if use_mask else None
     
     if batch_csv:
         print(f"--- UDRS Batch Evaluation Pipeline ---")
@@ -81,9 +81,10 @@ def run_pipeline(config_path):
                     print(f"Skipping triplet (files missing): {orig_path}, {edit_path}, {style_path}")
                     continue
                 
-                score, tiers, _ = evaluate_single_triplet(orig_path, edit_path, style_path, weights, segmenter)
+                score, tiers, multipliers = evaluate_single_triplet(orig_path, edit_path, style_path, weights, segmenter)
                 results.append(score)
-                print(f"Processed: {edit_path} | UDRS: {score:.2f}%")
+                t1_score = tiers[0]
+                print(f"Processed: {edit_path} | T1: {t1_score:.2f}% | UDRS: {score:.2f}% | Mult: {[round(m,2) for m in multipliers]}")
         
         if results:
             avg_score = sum(results) / len(results)

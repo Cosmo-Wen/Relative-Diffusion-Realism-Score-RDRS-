@@ -8,9 +8,9 @@ images:
 
 # Pipeline Settings
 settings:
-  batch_csv: null    # Path to triplets.csv for batch mode, or null for single mode
-  plot: true         # Generate Tier 1 pentagon plot (single mode only)
-  use_mask: true     # Enable isolated spatial segmentation (v2.2)
+  batch_csv: "triplets_small.csv"
+  plot: false
+  use_mask: true
 
 # Weighted Aggregation (Sum should ideally be 1.0)
 weights:

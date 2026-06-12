@@ -49,9 +49,11 @@ The final UDRS score is calculated as a weighted sum of all implemented tiers. W
 To prevent localized edits (like hair) from incorrectly tanking the global realism score, a spatial segmentation layer was introduced:
 
 - **BaseSegmenter Abstraction**: A unified interface for segmentation backends, allowing for hot-swapping between Mock, PoC (MediaPipe), and High-Fidelity (SAM) models.
+- **DifferenceSegmenter (Robust PoC)**: A dynamic segmenter was implemented that identifies the "Hair Zone" by computing the absolute difference between the original and edited images. This is significantly more robust than static masks as it perfectly isolates the actual edited pixels regardless of composition.
+- **Independent Style Masking**: To ensure valid textural baselines, the pipeline now generates a *separate* semantic mask for the style reference image. This prevents the spatial coordinates of the edited image's hair from being incorrectly applied to a different style reference image.
 - **Mask-Aware Evaluation**: The frame is semantically split into a "Hair Zone" (evaluated against the Style Reference) and a "Preservation Zone" (evaluated against the Original Image).
 - **Masked GLCM Implementation**: Standard GLCM functions do not support irregular masks. To implement this mathematically, masked-out pixels are assigned an intensity level of `64` (outside the `0-63` valid range). After co-occurrence accumulation, the matrix is sliced to exclude the `64th` level, ensuring texture properties are only computed for valid neighboring pixel pairs within the semantic zone.
-- **Localized Statistics**: Canny density, Laplacian variance, and FFT mean spectrum are computed strictly on masked pixel subsets to ensure local changes do not corrupt global preservation assessments.
+- **Localized Statistics**: Canny density, Laplacian variance, and FFT mean spectrum are computed strictly on masked pixel subsets to ensure local changes do not corrupt global preservation assessments. Boundary artifacts are minimized by zero-masking images *before* kernel application.
 
 ## 11. Global Evaluation Toggle (--no-mask)
 
