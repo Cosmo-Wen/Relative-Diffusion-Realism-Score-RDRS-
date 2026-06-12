@@ -15,6 +15,10 @@ def get_glcm_features(image_gray, mask=None, mask_target=255):
     img_reduced = (image_gray // 4).astype(np.uint8)
     
     if mask is not None:
+        # Ensure mask matches image dimensions
+        if mask.shape[:2] != img_reduced.shape[:2]:
+            mask = cv2.resize(mask, (img_reduced.shape[1], img_reduced.shape[0]), interpolation=cv2.INTER_NEAREST)
+            
         # Trick: Set masked-out pixels to an intensity outside the [0, 63] range.
         # We use 64 levels for valid data, so level 64 is the 'masked' level.
         valid_mask = (mask == mask_target)
@@ -56,6 +60,8 @@ def get_canny_edge_density(image_gray, mask=None, mask_target=255):
     edges = cv2.Canny(image_gray, lower, upper)
     
     if mask is not None:
+        if mask.shape[:2] != image_gray.shape[:2]:
+            mask = cv2.resize(mask, (image_gray.shape[1], image_gray.shape[0]), interpolation=cv2.INTER_NEAREST)
         valid_mask = (mask == mask_target)
         # Filter edges by mask
         masked_edges = edges[valid_mask]
@@ -81,6 +87,8 @@ def get_variance_blur_measure(image_gray, mask=None, mask_target=0):
     laplacian = cv2.Laplacian(img_float, cv2.CV_32F)
     
     if mask is not None:
+        if mask.shape[:2] != image_gray.shape[:2]:
+            mask = cv2.resize(mask, (image_gray.shape[1], image_gray.shape[0]), interpolation=cv2.INTER_NEAREST)
         valid_mask = (mask == mask_target)
         valid_laplacian = laplacian[valid_mask]
         if valid_laplacian.size == 0:
@@ -100,6 +108,8 @@ def get_mean_spectrum(image_gray, mask=None, mask_target=0):
     img_float = image_gray.astype(np.float32)
     
     if mask is not None:
+        if mask.shape[:2] != image_gray.shape[:2]:
+            mask = cv2.resize(mask, (image_gray.shape[1], image_gray.shape[0]), interpolation=cv2.INTER_NEAREST)
         # Zero out pixels outside the target zone
         img_float[mask != mask_target] = 0
         
