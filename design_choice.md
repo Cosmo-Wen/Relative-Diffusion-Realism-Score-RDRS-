@@ -44,6 +44,11 @@ The project has been upgraded to a multi-tiered evaluation framework:
 
 The final UDRS score is calculated as a weighted sum of all implemented tiers. Weights are fully configurable via `config.yaml`, allowing for flexible evaluation depending on compute availability and use-case priority.
 
-## 9. Dependency Management
-- **PyTorch & Torchvision**: Added for ResNet-18 (Tier 2).
-- **OpenCLIP**: Added for zero-shot style classification (Tier 4).
+## 10. Isolated Spatial Segmentation (v2.2)
+
+To prevent localized edits (like hair) from incorrectly tanking the global realism score, a spatial segmentation layer was introduced:
+
+- **BaseSegmenter Abstraction**: A unified interface for segmentation backends, allowing for hot-swapping between Mock, PoC (MediaPipe), and High-Fidelity (SAM) models.
+- **Mask-Aware Evaluation**: The frame is semantically split into a "Hair Zone" (evaluated against the Style Reference) and a "Preservation Zone" (evaluated against the Original Image).
+- **Masked GLCM Implementation**: Standard GLCM functions do not support irregular masks. To implement this mathematically, masked-out pixels are assigned an intensity level of `64` (outside the `0-63` valid range). After co-occurrence accumulation, the matrix is sliced to exclude the `64th` level, ensuring texture properties are only computed for valid neighboring pixel pairs within the semantic zone.
+- **Localized Statistics**: Canny density, Laplacian variance, and FFT mean spectrum are computed strictly on masked pixel subsets to ensure local changes do not corrupt global preservation assessments.

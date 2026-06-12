@@ -1,92 +1,45 @@
-# Unified Diffusion Realism Score (UDRS)
+# Modification Specification: Isolated Spatial Segmentation & Modular Masking Tiers (v2.2)
 
-System Design Specification (v2.0)
+## 1. Problem Statement & Architectural Driver
+Global image evaluations degrade when an edit introduces massive structural changes (e.g., transforming a bald or short-haired profile into voluminous hair). Because the structural metrics ($GLCM$, $CED$, $VBM$, $MS$) evaluate the frame as a single matrix, replacing a smooth background with complex hair strand textures tanks the preservation score to 0%, even if the background remains untouched. 
 
-1. System Objective
+To correct this, the pipeline must break the image into isolated semantic zones via a binary mask:
+1. **The Hair Zone (Within Mask):** Evaluated strictly against the **Style Reference Image** to score how well the generated textures match the intended hair profile.
+2. **The Preservation Zone (Outside Mask):** Evaluated strictly against the **Original Image** to guarantee that the face, clothing, and background canvas suffer no degradation, blurring, or structural hallucinations.
 
-The UDRS pipeline is a multi-tiered evaluation framework designed to assess the physical, perceptual, and semantic realism of an image edited via a diffusion model. By integrating structural statistics, deep feature extraction, and cloud-based VLM semantic checks, it provides a holistic percentage score benchmarking the edited image against its unedited baseline.
+---
 
-2. Tiered Evaluation Architecture
+## 2. Git Workflow & Branch Strategy
+All modifications outlined in this document must be developed outside the mainline production environment.
+* **Target Branch:** `feature/isolated-segmentation-masking`
+* **Workflow:** Branch off `main` or the current stable release. No code is to be merged back into `main` until it passes the integration testing suite with the mock backend verification.
 
-The system is divided into three independent but combinable evaluation tiers to allow for modular execution based on available compute.
+---
 
-Tier 1: Structural Realism (RDRS Core)
+## 3. Modular Segmentation Abstract Layer (Backend Swapping)
+To prevent tight coupling to an individual computer vision engine, the codebase must enforce a strict interface contract. This allows a lightweight framework like SegFormer or MediaPipe to be used for rapid Proof of Concept (PoC) development, while leaving the architecture fully prepared to hot-swap to high-fidelity backends like SAM (Segment Anything Model) or custom internal models later without rewriting downstream math.
 
-Validating the low-level physical integrity of the image using the pentagon geometric model. As proven by the RAISE dataset analysis, handcrafted features strongly correlate with subjective human realness ratings.
+### Abstract Interface Definition
+An abstract base class `BaseSegmenter` establishes a unified interface signature. Every backend must ingest a standard 3D NumPy BGR array and return a single-channel binary mask of identical spatial dimensions, where pixel value `255` denotes hair and `0` denotes background/face canvas.
 
-Features: GLCM Contrast, Canny Edge Density, GLCM Energy, Variance Blur Measure, Mean Spectrum.
+---
 
-Method: Relative calibration against the original image to compute the RDRS area percentage.
+## 4. Tier 1 Code Re-Architecture (Mask-Aware Realism)
+When calculating structural statistics, the image matrix must be filtered through the generated binary mask.
 
-Tier 2: Deep Perceptual Realism (RAISE ResNet Module)
+### A. Inside-Mask Calculations (Hair Style Match)
+* **Target Baseline:** Style Reference Image.
+* **Metrics Active:** $GLCM_C$ and $CED$.
+* **Matrix Filtering:** Features are calculated strictly using pixel locations where $\text{Mask} == 255$. For GLCM matrices, gray-level co-occurrences are only accumulated if both neighboring pixels fall inside the mask bounds to avoid edge boundaries corrupting texture properties.
 
-Evaluating the global "naturalness" of the image using transfer learning from foundation vision models.
+### B. Outside-Mask Calculations (Background & Face Quality Preservation)
+* **Target Baseline:** Original Image.
+* **Metrics Active:** $VBM$, $MS$, and $GLCM_E$.
+* **Matrix Filtering:** Features are calculated strictly using pixel locations where $\text{Mask} == 0$. For Fourier Transforms ($MS$) and Laplacians ($VBM$), the pixels inside the hair mask are zeroed out or masked out of the global averaging loop to ensure new hair configurations do not influence background blur or high-frequency static noise assessments.
 
-Methodology: The RAISE paper demonstrates that a ResNet-18 backbone, pre-trained on ImageNet, effectively acts as a feature extractor for perceptual realness.
+---
 
-Implementation: Pass both the original and edited images through a frozen, local PyTorch ResNet-18 model. Extract the 512-dimensional feature maps from global average pooling. Compute the Cosine Similarity between the original and edited embeddings to generate a "Deep Perceptual Retention" percentage.
-
-Tier 3: Semantic & Relational Realism (REAL API Module)
-
-Assessing the logical integrity of fine-grained visual attributes and unusual visual relationships.
-
-Methodology: Generates structured prompts to check for visibility, description match, and relationship plausibility.
-
-Implementation:Uses a schema generator to define expected attributes.Pings a cloud API (GPT-4o or Gemini 1.5 Pro) to act as the Visual Question Answering (VQA) engine.
-
-Calculates an Attribute Score ($S_{att}$) based on the ratio of correctly depicted visible attributes to total visible attributes.
-
-Calculates a Relationship Score ($S_{rel}$) based on visibility, realism, and relationship checks between objects.
-
-Tier 4: Visual Style Fidelity (REAL CLIP Module)
-
-Ensuring the diffusion model did not shift a photorealistic image into an illustrative style .
-
-Implementation: A local, lightweight CLIP model fine-tuned on "photo" vs "illustration" classes. It outputs a probability score indicating the likelihood the edited image remains in the "photo" class.
-
-3. Aggregation Engine
-
-The final UDRS score is a weighted aggregation of the tiers.
-
-$Score_{Total} = (w_1 \cdot Structural) + (w_2 \cdot Perceptual) + (w_3 \cdot Semantic) + (w_4 \cdot Style)$
-
-Weights are configurable depending on the specific use-case constraints (e.g., setting $w_3 = 0$ if API access is offline).
-
-4. Updated Project Directory Organization
-
-```text
-diffusion_realism_eval/
-│
-├── data/
-│   ├── original/              # Unedited baseline images
-│   └── edited/                # Diffusion-edited variants
-│
-├── src/
-│   ├── __init__.py
-│   ├── rdrs_core.py           # Tier 1: Structural pentagon math (numpy/scikit-image)
-│   ├── raise_perceptual.py    # Tier 2: ResNet-18 deep feature extraction (PyTorch)
-│   ├── real_semantic.py       # Tier 3: VQA schemas and Cloud API wrappers (requests/SDK)
-│   └── real_style.py          # Tier 4: CLIP zero-shot/fine-tuned style classification
-│
-├── tests/
-│   ├── __init__.py
-│   ├── test_structural.py
-│   ├── test_perceptual.py
-│   └── test_semantic_mock.py  # Mocks API responses to test VQA math without spending credits
-│
-├── config/
-│   └── api_keys.env           # Stores OpenAI/Google API keys
-│
-├── requirements.txt
-└── README.md
-```
-
-5. API Fallback & Future-Proofing
-
-The real_semantic.py module is designed with an abstract VQABackend class.
-
-Current State: Instantiates CloudVQABackend targeting standard REST endpoints.
-
-Future State: Can instantiate LocalVQABackend to load weights for models like mPLUG-Owl3 into VRAM once hardware permits.
-
-To get this off the ground, how would you like to handle the weighting between these four modules for the final composite score?
+## 5. Verification & Testing Protocol
+The testing suite inside `tests/test_structural.py` must expand to cover spatial boundaries:
+1. **The Inverse Mask Identity Test:** If an edited image matches the original image perfectly outside the mask zone, the Preservation Zone Score ($VBM, MS, GLCM_E$) must return exactly `100.0%`, regardless of what structural changes happened inside the hair mask.
+2. **Backend Interoperability Test:** A unit test must initialize the evaluator with a dummy mock segmenter, verify execution, swap the property to a second segmenter class instance, and re-execute to confirm zero signature breaks in the main orchestration layer.

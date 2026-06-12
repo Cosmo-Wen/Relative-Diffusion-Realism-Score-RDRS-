@@ -43,7 +43,7 @@ def calculate_tier2_score(orig_path, edit_path):
     # Compute Cosine Similarity
     similarity = F.cosine_similarity(orig_emb, edit_emb).item()
     
-    mean = torch.tensor(0.875)
+    mean = torch.tensor(0.88)
     std = torch.tensor(0.06)
     dist = torch.distributions.Normal(mean, std)
     similarity_tensor = torch.tensor(similarity)

@@ -25,10 +25,13 @@ UDRS is a multi-tiered evaluation framework designed to assess the physical, per
    ```
 
 ## Tiered Evaluation Architecture
-- **Tier 1: Structural Realism**: Low-level physical integrity using the RDRS pentagon model.
+- **Tier 1: Structural Realism**: Low-level physical integrity using mask-aware evaluation to isolate hair style from background preservation.
 - **Tier 2: Perceptual Realism**: High-level naturalness using ResNet-18 deep features.
 - **Tier 3: Semantic Realism**: Logical and relational integrity (Mocked API).
 - **Tier 4: Style Fidelity**: Visual consistency using OpenCLIP zero-shot classification.
+
+## Masked Evaluation (v2.2)
+The pipeline now supports semantic masking via a modular segmentation layer. By default, it uses a `MockSegmenter` for a lightweight, 5-minute setup that isolates structural changes in the center of the frame.
 
 ## Project Structure
 - `src/`: Multi-tiered logic (`rdrs_core.py`, `raise_perceptual.py`, `real_semantic.py`, `real_style.py`).

@@ -5,9 +5,13 @@ from src.raise_perceptual import calculate_tier2_score
 from src.real_semantic import calculate_tier3_score
 from src.real_style import calculate_tier4_score
 from src.visualization import plot_rdrs_pentagon
+from src.segmentation import MockSegmenter
 
 # Unified Pipeline
 def run_pipeline(config_path, plot=False):
+    # Initialize Segmenter (can be hot-swapped for SAM, etc.)
+    segmenter = MockSegmenter()
+    
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
     
@@ -31,7 +35,7 @@ def run_pipeline(config_path, plot=False):
     # Tier 1: Structural
     print("Calculating Tier 1: Structural Realism...")
     if w1 > 0:
-        t1_score, multipliers = calculate_tier1_score(orig_path, edit_path, style_path)
+        t1_score, multipliers = calculate_tier1_score(orig_path, edit_path, style_path, segmenter=segmenter)
     else:
         t1_score = 0
         multipliers = {}

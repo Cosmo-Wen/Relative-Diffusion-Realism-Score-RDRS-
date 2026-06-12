@@ -3,28 +3,44 @@ import base64
 import re
 from abc import ABC, abstractmethod
 
-import vertexai
-from vertexai.generative_models import GenerativeModel, Part
+try:
+    import vertexai
+    from vertexai.generative_models import GenerativeModel, Part
+    HAS_VERTEX = True
+except ImportError:
+    HAS_VERTEX = False
 
 # --- Configuration ---
 PROJECT_ID = "modiface-rnd"
 LOCATION   = "global"
 MODEL_NAME = "gemini-3.5-flash"
 
-vertexai.init(project=PROJECT_ID, location=LOCATION)
+if HAS_VERTEX:
+    vertexai.init(project=PROJECT_ID, location=LOCATION)
 
 class VQABackend(ABC):
     @abstractmethod
     def ask(self, image_path, question):
         pass
 
+class MockVQABackend(VQABackend):
+    """
+    Simulates a Cloud API response for semantic checks.
+    """
+    def ask(self, image_path, question):
+        if "attributes" in question.lower():
+            return {"visible_attributes": 10, "correct_attributes": 9}
+        if "relationships" in question.lower():
+            return {"visible_relationships": 5, "realistic_relationships": 4}
+        return {}
+
 class GeminiVQABackend(VQABackend):
     """
     Calls Gemini 3.5 Flash via Vertex AI for semantic checks.
-    Expects the model to return a JSON object as plain text.
     """
-
     def __init__(self, model_name=MODEL_NAME):
+        if not HAS_VERTEX:
+            raise ImportError("google-cloud-aiplatform is required for GeminiVQABackend")
         self.model = GenerativeModel(model_name)
 
     def ask(self, image_path, question):
@@ -46,52 +62,38 @@ class GeminiVQABackend(VQABackend):
         return self._parse_json_safe(raw)
 
     def _parse_json_safe(self, raw: str) -> dict:
-        # 1. Direct parse — happy path
         try:
             return json.loads(raw)
         except json.JSONDecodeError:
             pass
-
-        # 2. Strip markdown code fences (json ...)         
         fenced = re.sub(r"^(?:json)?\s*", "", raw, flags=re.IGNORECASE)
         fenced = re.sub(r"\s*```$", "", fenced).strip()
         try:
             return json.loads(fenced)
         except json.JSONDecodeError:
             pass
-
-        # 3. Extract first {...} block found anywhere in the text
-            match = re.search(r"\{.*\}", raw, re.DOTALL)
-            if match:
-                try:
-                    return json.loads(match.group())
-                except json.JSONDecodeError:
-                    pass
-
-        # 4. Give up — raise with the raw response for debugging
-        raise ValueError(
-            f"GeminiVQABackend: model returned non-JSON response.\n"
-            f"--- Raw response ---\n{raw}\n--------------------"
-        )
+        match = re.search(r"\{.*\}", raw, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group())
+            except json.JSONDecodeError:
+                pass
+        raise ValueError(f"GeminiVQABackend: non-JSON response: {raw}")
 
 def calculate_tier3_score(orig_path, edit_path, backend=None):
     """
     Computes Tier 3: Semantic & Relational Realism.
-    Score = (S_att + S_rel) / 2
     """
     if backend is None:
-        backend = GeminiVQABackend()
+        backend = MockVQABackend()
 
     # 1. Attribute Check
     att_res = backend.ask(edit_path, "Check for correctly depicted visible attributes.")
-    print(f"Attribute Check Result: {att_res}")
-    # s_att = (att_res['correct_attributes'] / att_res['visible_attributes']) * 100.0 if att_res.get('visible_attributes', 0) > 0 else 0.0
+    s_att = (att_res['correct_attributes'] / att_res['visible_attributes']) * 100.0 if att_res.get('visible_attributes', 0) > 0 else 0.0
 
     # 2. Relationship Check
     rel_res = backend.ask(edit_path, "Check for realism and logical relationships between objects.")
-    print(f"Relationship Check Result: {rel_res}")
-    # s_rel = (rel_res['realistic_relationships'] / rel_res['visible_relationships']) * 100.0 if rel_res.get('visible_relationships', 0) > 0 else 0.0
+    s_rel = (rel_res['realistic_relationships'] / rel_res['visible_relationships']) * 100.0 if rel_res.get('visible_relationships', 0) > 0 else 0.0
 
-    # Combined Score
-    # score = (s_att + s_rel) / 2.0
-    return 0
+    score = (s_att + s_rel) / 2.0
+    return score

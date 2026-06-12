@@ -2,6 +2,7 @@
 
 images:
   original: "data/original/source.png"
+  style: "data/original/source.png"
   edited: "data/edited/edited.png"
 
 # Weighted Aggregation (Sum should ideally be 1.0)
