@@ -23,5 +23,32 @@ A `config.yaml` file was introduced to manage image paths and system settings. T
 ## 4. Error Handling
 Added basic validation to ensure images exist before processing and used epsilon values (`1e-10`) to prevent division-by-zero errors during feature inversion and normalization.
 
-## 5. Version Control
-The project was initialized with Git from the start to maintain a clean history and allow for iterative development and easy rollbacks.
+## 6. Enhancements (feature/enhancements branch)
+
+Several mathematical and functional improvements were made to the core pipeline:
+
+- **Rotational Invariance (GLCM)**: Feature extraction now averages over 0, 45, 90, and 135 degrees to ensure the realism score is not biased by image orientation.
+- **Adaptive Canny Thresholding**: Thresholds are now computed dynamically based on the image median, making edge density analysis robust across different lighting and contrast levels.
+- **High-Frequency Spectral Noise**: The Mean Spectrum calculation now excludes the DC component, focusing more precisely on high-frequency noise artifacts typically introduced by diffusion steps.
+- **L1 Histogram Normalization**: Switched from MinMax to L1 normalization in `color_fidelity.py` to ensure histogram intersection represents a valid shared probability distribution.
+## 7. Unified Diffusion Realism Score (UDRS) Architecture
+
+The project has been upgraded to a multi-tiered evaluation framework:
+
+- **Tier 1: Structural Realism (RDRS Core)**: Handcrafted image statistics (GLCM, Canny, FFT) aggregated via a pentagon model.
+- **Tier 2: Deep Perceptual Realism**: Uses a pre-trained ResNet-18 model to extract 512D embeddings from the global average pooling layer. Similarity is measured via Cosine Similarity.
+- **Tier 3: Semantic & Relational Realism**: A modular VQA-based evaluation. Currently implemented with a `MockVQABackend` to simulate cloud API responses for attribute and relationship checks without loading local VLMs.
+- **Tier 4: Visual Style Fidelity**: Uses the `OpenCLIP` library (ViT-B-32) for zero-shot style classification. It measures the probability that the edited image maintains a "photo" style versus becoming an "illustration" or "painting".
+
+## 8. Weighted Aggregation
+
+The final UDRS score is calculated as a weighted sum of all implemented tiers. Weights are fully configurable via `config.yaml`, allowing for flexible evaluation depending on compute availability and use-case priority.
+
+## 10. Isolated Spatial Segmentation (v2.2)
+
+To prevent localized edits (like hair) from incorrectly tanking the global realism score, a spatial segmentation layer was introduced:
+
+- **BaseSegmenter Abstraction**: A unified interface for segmentation backends, allowing for hot-swapping between Mock, PoC (MediaPipe), and High-Fidelity (SAM) models.
+- **Mask-Aware Evaluation**: The frame is semantically split into a "Hair Zone" (evaluated against the Style Reference) and a "Preservation Zone" (evaluated against the Original Image).
+- **Masked GLCM Implementation**: Standard GLCM functions do not support irregular masks. To implement this mathematically, masked-out pixels are assigned an intensity level of `64` (outside the `0-63` valid range). After co-occurrence accumulation, the matrix is sliced to exclude the `64th` level, ensuring texture properties are only computed for valid neighboring pixel pairs within the semantic zone.
+- **Localized Statistics**: Canny density, Laplacian variance, and FFT mean spectrum are computed strictly on masked pixel subsets to ensure local changes do not corrupt global preservation assessments.
