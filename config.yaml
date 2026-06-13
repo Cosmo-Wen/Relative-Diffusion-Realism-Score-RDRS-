@@ -3,15 +3,15 @@
 # Image Paths (used if batch_csv is null)
 images:
   original: "data/original/source.png"
-  style: "data/original/source.png"
+  style: "data/original/style.png"
   edited: "data/edited/edited.png"
 
 # Pipeline Settings
 settings:
-  batch_csv: "triplets_201.csv"
-  plot: false
-  use_mask: true
-  save_masks: false
+  batch_csv: null    # Path to triplets.csv for batch mode, or null for single mode
+  plot: false        # Generate Tier 1 pentagon plot (single mode only)
+  use_mask: true     # Enable isolated spatial segmentation (v2.2)
+  save_masks: false  # Save mask overlays for debugging independently
 
 # Weighted Aggregation (Sum should ideally be 1.0)
 weights:

@@ -1,3 +1,9 @@
 venv/
 __pycache__/
 data/
+debug_masks/
+*.png
+*.txt
+*.bundle
+*.csv
+!triplets_example.csv
