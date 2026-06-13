@@ -81,14 +81,16 @@ def get_variance_blur_measure(image_gray, mask=None, mask_target=0):
     consistency, then variance is calculated strictly within the mask zone.
     """
     img_float = image_gray.astype(np.float32)
+    
     if mask is not None:
+        if mask.shape[:2] != image_gray.shape[:2]:
+            mask = cv2.resize(mask, (image_gray.shape[1], image_gray.shape[0]), interpolation=cv2.INTER_NEAREST)
+        # Zero out pixels outside the target zone
         img_float[mask != mask_target] = 0
         
     laplacian = cv2.Laplacian(img_float, cv2.CV_32F)
     
     if mask is not None:
-        if mask.shape[:2] != image_gray.shape[:2]:
-            mask = cv2.resize(mask, (image_gray.shape[1], image_gray.shape[0]), interpolation=cv2.INTER_NEAREST)
         valid_mask = (mask == mask_target)
         valid_laplacian = laplacian[valid_mask]
         if valid_laplacian.size == 0:

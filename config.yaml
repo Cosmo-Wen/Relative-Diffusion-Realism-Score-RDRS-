@@ -8,9 +8,10 @@ images:
 
 # Pipeline Settings
 settings:
-  batch_csv: "triplets_small.csv"
+  batch_csv: "triplets_201.csv"
   plot: false
   use_mask: true
+  save_masks: false
 
 # Weighted Aggregation (Sum should ideally be 1.0)
 weights:

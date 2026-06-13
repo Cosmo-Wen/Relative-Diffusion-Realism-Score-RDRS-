@@ -2,43 +2,49 @@ import math
 
 def get_rdrs_score(multipliers):
     """
-    Computes the final RDRS score as a percentage relative to the baseline area (2.377).
+    Computes the final RDRS score using a symmetric logarithmic penalty.
+    Strict but fair: Doubling a value and halving a value yield the same penalty.
     """
-    # MAE
-    penalties = [abs(1.0 - r) for r in multipliers]
+    # log10(1) = 0 (perfect)
+    # log10(2) = 0.301, log10(0.5) = -0.301
+    # We use log10 and cap it at 1.0 (a 10x difference) for strict but robust scoring.
+    penalties = []
+    for r in multipliers:
+        # Avoid log of zero
+        r_safe = max(r, 1e-5)
+        p = abs(math.log10(r_safe))
+        # Cap penalty at 1.0 (meaning a 10x difference is a maximum penalty)
+        penalties.append(min(p, 1.0))
     
     # Average the penalties
-    avg_penalty = sum(penalties) / 5
+    avg_penalty = sum(penalties) / len(multipliers)
     
-    # Convert to a 0-100% score
-    score = max(0.0, 100.0 - (avg_penalty * 100))
+    # Map penalty [0, 1.0] to score [100, 0]
+    # score = 100 * (1 - avg_penalty)
+    score = max(0.0, 100.0 * (1.0 - avg_penalty))
 
     return float(score)
 
 def get_rdrs_separated_scores(multipliers):
     """
-    Computes the two different RDRS scores: The quality score (MS, GLCM_E, VBM)
-    and the style shift index (GLCM_C, CED). 
+    Computes separated scores using the same symmetric log logic.
     """
-    ced_r, glcm_c_r, glcm_e_r, vbm_r, ms_r = multipliers
-    quality_penalties = [
-        abs(1.0 - vbm_r),
-        abs(1.0 - ms_r),
-        abs(1.0 - glcm_e_r)
-    ]
-    avg_quality_penalty = sum(quality_penalties) / 3
+    if len(multipliers) < 5:
+        return 0.0, 0.0
+        
+    m_e, m_vbm, m_ms, m_c, m_ced = multipliers
     
-    # Convert penalty to a score out of 100. 
-    # (e.g., a 0.2 penalty means 80% retention)
-    quality_score = max(0.0, 100.0 - (avg_quality_penalty * 100))
+    # Quality (Preservation)
+    q_mults = [m_e, m_vbm, m_ms]
+    q_penalties = [min(abs(math.log10(max(r, 1e-5))), 1.0) for r in q_mults]
+    avg_q_penalty = sum(q_penalties) / 3
+    quality_score = max(0.0, 100.0 * (1.0 - avg_q_penalty))
 
-    # 2. STYLE SHIFT INDEX (CED, GLCM_C)
-    # We EXPECT these to change. This number just tells us "how much" it changed.
-    # A shift of 0.0 means the hair texture didn't change at all.
-    style_shifts = [
-        abs(1.0 - ced_r),
-        abs(1.0 - glcm_c_r)
-    ]
-    style_shift_index = sum(style_shifts) / 2
-    print(f"Quality Penalties: {quality_penalties}, Avg Penalty: {avg_quality_penalty:.4f}, Quality Score: {quality_score:.2f}%, Style Shifts: {style_shifts}, Style Shift Index: {style_shift_index:.4f}")
-    return (quality_score, style_shift_index)
+    # Style Shift (Match)
+    s_mults = [m_c, m_ced]
+    s_penalties = [min(abs(math.log10(max(r, 1e-5))), 1.0) for r in s_mults]
+    avg_s_penalty = sum(s_penalties) / 2
+    # Style shift index: 0.0 is perfect match, 1.0 is 10x difference
+    style_shift_index = avg_s_penalty
+    
+    return quality_score, style_shift_index

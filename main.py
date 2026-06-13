@@ -7,9 +7,9 @@ from src.raise_perceptual import calculate_tier2_score
 from src.real_semantic import calculate_tier3_score
 from src.real_style import calculate_tier4_score
 from src.visualization import plot_rdrs_pentagon
-from src.segmentation import DifferenceSegmenter
+from src.segmentation import HeuristicHairSegmenter
 
-def evaluate_single_triplet(orig_path, edit_path, style_path, weights, segmenter):
+def evaluate_single_triplet(orig_path, edit_path, style_path, weights, segmenter, save_masks=False):
     """
     Evaluates a single triplet of images and returns the final UDRS score and individual tier scores.
     """
@@ -20,7 +20,7 @@ def evaluate_single_triplet(orig_path, edit_path, style_path, weights, segmenter
     
     # Tier 1: Structural
     if w1 > 0:
-        t1_score, multipliers = calculate_tier1_score(orig_path, edit_path, style_path, segmenter=segmenter)
+        t1_score, multipliers = calculate_tier1_score(orig_path, edit_path, style_path, segmenter=segmenter, save_masks=save_masks)
     else:
         t1_score = 0
         multipliers = {}
@@ -57,10 +57,11 @@ def run_pipeline(config_path):
     batch_csv = settings.get('batch_csv')
     plot = settings.get('plot', False)
     use_mask = settings.get('use_mask', True)
+    save_masks = settings.get('save_masks', False)
     weights = config.get('weights', {})
     
-    # Initialize Segmenter (DifferenceSegmenter is robust for PoC)
-    segmenter = DifferenceSegmenter() if use_mask else None
+    # Initialize Segmenter (HeuristicHairSegmenter is robust and AI-model-free)
+    segmenter = HeuristicHairSegmenter() if use_mask else None
     
     if batch_csv:
         print(f"--- UDRS Batch Evaluation Pipeline ---")
@@ -81,7 +82,7 @@ def run_pipeline(config_path):
                     print(f"Skipping triplet (files missing): {orig_path}, {edit_path}, {style_path}")
                     continue
                 
-                score, tiers, multipliers = evaluate_single_triplet(orig_path, edit_path, style_path, weights, segmenter)
+                score, tiers, multipliers = evaluate_single_triplet(orig_path, edit_path, style_path, weights, segmenter, save_masks=save_masks)
                 results.append(score)
                 t1_score = tiers[0]
                 print(f"Processed: {edit_path} | T1: {t1_score:.2f}% | UDRS: {score:.2f}% | Mult: {[round(m,2) for m in multipliers]}")
@@ -109,7 +110,7 @@ def run_pipeline(config_path):
         print(f"Weights:  T1={weights.get('tier1_structural', 0)}, T2={weights.get('tier2_perceptual', 0)}, T3={weights.get('tier3_semantic', 0)}, T4={weights.get('tier4_style', 0)}")
         print(f"--------------------------------")
         
-        score, tiers, multipliers = evaluate_single_triplet(orig_path, edit_path, style_path, weights, segmenter)
+        score, tiers, multipliers = evaluate_single_triplet(orig_path, edit_path, style_path, weights, segmenter, save_masks=save_masks)
         t1, t2, t3, t4 = tiers
         
         # Visualization
