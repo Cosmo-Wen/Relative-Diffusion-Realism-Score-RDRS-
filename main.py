@@ -7,7 +7,7 @@ from src.raise_perceptual import calculate_tier2_score
 from src.real_semantic import calculate_tier3_score
 from src.real_style import calculate_tier4_score
 from src.visualization import plot_rdrs_pentagon
-from src.segmentation import HeuristicHairSegmenter
+from src.segmentation import TransformersHairSegmenter
 
 def evaluate_single_triplet(orig_path, edit_path, style_path, weights, segmenter, save_masks=False):
     """
@@ -60,16 +60,19 @@ def run_pipeline(config_path):
     save_masks = settings.get('save_masks', False)
     weights = config.get('weights', {})
     
-    # Initialize Segmenter (HeuristicHairSegmenter is robust and AI-model-free)
-    segmenter = HeuristicHairSegmenter() if use_mask else None
+    # Initialize Segmenter (TransformersHairSegmenter is an actual semantic model)
+    segmenter = TransformersHairSegmenter() if use_mask else None
     
     if batch_csv:
+        output_csv = settings.get('output_csv', 'batch_results.csv')
         print(f"--- UDRS Batch Evaluation Pipeline ---")
         print(f"CSV Path: {batch_csv}")
+        print(f"Output CSV: {output_csv}")
         print(f"Masking:  {'Enabled' if use_mask else 'Disabled'}")
         print(f"--------------------------------------")
         
         results = []
+        output_rows = []
         with open(batch_csv, 'r') as f:
             reader = csv.DictReader(f)
             for row in reader:
@@ -84,15 +87,45 @@ def run_pipeline(config_path):
                 
                 score, tiers, multipliers = evaluate_single_triplet(orig_path, edit_path, style_path, weights, segmenter, save_masks=save_masks)
                 results.append(score)
-                t1_score = tiers[0]
-                print(f"Processed: {edit_path} | T1: {t1_score:.2f}% | UDRS: {score:.2f}% | Mult: {[round(m,2) for m in multipliers]}")
+                t1, t2, t3, t4 = tiers
+                
+                mult_e = multipliers[0] if len(multipliers) > 0 else 0
+                mult_vbm = multipliers[1] if len(multipliers) > 1 else 0
+                mult_ms = multipliers[2] if len(multipliers) > 2 else 0
+                mult_c = multipliers[3] if len(multipliers) > 3 else 0
+                mult_ced = multipliers[4] if len(multipliers) > 4 else 0
+                
+                output_rows.append({
+                    'source_path': orig_path,
+                    'edit_path': edit_path,
+                    'style_path': style_path,
+                    'UDRS_score': score,
+                    'Tier1': t1,
+                    'Tier2': t2,
+                    'Tier3': t3,
+                    'Tier4': t4,
+                    'GLCM_E_mult': mult_e,
+                    'VBM_mult': mult_vbm,
+                    'MS_mult': mult_ms,
+                    'GLCM_C_mult': mult_c,
+                    'CED_mult': mult_ced
+                })
+                
+                print(f"Processed: {edit_path} | T1: {t1:.2f}% | UDRS: {score:.2f}% | Mult: {[round(m,2) for m in multipliers]}")
         
         if results:
+            with open(output_csv, 'w', newline='') as f:
+                fieldnames = ['source_path', 'edit_path', 'style_path', 'UDRS_score', 'Tier1', 'Tier2', 'Tier3', 'Tier4', 'GLCM_E_mult', 'VBM_mult', 'MS_mult', 'GLCM_C_mult', 'CED_mult']
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(output_rows)
+            
             avg_score = sum(results) / len(results)
             print(f"\n================================")
             print(f"BATCH EVALUATION COMPLETE")
             print(f"Triplets Processed: {len(results)}")
             print(f"AVERAGE UDRS SCORE: {avg_score:.2f}%")
+            print(f"Results saved to {output_csv}")
             print(f"================================")
         else:
             print("No triplets were successfully processed.")

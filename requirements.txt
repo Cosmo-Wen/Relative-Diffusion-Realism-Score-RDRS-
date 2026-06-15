@@ -1,0 +1,11 @@
+numpy
+scikit-image
+opencv-python-headless
+pytest
+pyyaml
+matplotlib
+torch
+torchvision
+open-clip-torch
+transformers
+evaluate

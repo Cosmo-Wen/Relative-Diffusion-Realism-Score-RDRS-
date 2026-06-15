@@ -10,6 +10,7 @@ UDRS is a multi-tiered evaluation framework designed to assess the physical, per
    ```
 
 2. **Install Dependencies:**
+   The `requirements.txt` includes standard computer vision tools (`opencv`, `scikit-image`) alongside necessary deep learning frameworks (`torch`, `transformers`, `open-clip-torch`) to power the semantic tiers.
    ```bash
    pip install -r requirements.txt
    ```
@@ -30,9 +31,10 @@ All pipeline behaviors are managed in `config.yaml`:
 - **`images`**: Paths for single-triplet evaluation.
 - **`settings`**:
     - `batch_csv`: Path to a CSV (e.g., `triplets.csv`) to enable batch processing.
+    - `output_csv`: Path to save the batch evaluation results (e.g., `batch_results.csv`).
     - `plot`: Set to `true` to generate a radar chart (single mode only).
     - `use_mask`: Toggle `true`/`false` to enable/disable isolated spatial segmentation (v2.2).
-- **`weights`**: Adjust the importance of each of the 4 tiers.
+    - `save_masks`: Save mask overlays for debugging independently.
 
 ## Tiered Evaluation Architecture
 - **Tier 1: Structural Realism**: Low-level physical integrity using mask-aware evaluation to isolate hair style from background preservation.

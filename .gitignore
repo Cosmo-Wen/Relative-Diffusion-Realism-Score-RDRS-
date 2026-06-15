@@ -4,6 +4,7 @@ data/
 debug_masks/
 *.png
 *.txt
+!requirements.txt
 *.bundle
 *.csv
 !triplets_example.csv
