@@ -20,10 +20,13 @@ def evaluate_single_triplet(orig_path, edit_path, style_path, weights, segmenter
     
     # Tier 1: Structural
     if w1 > 0:
-        t1_score, multipliers = calculate_tier1_score(orig_path, edit_path, style_path, segmenter=segmenter, save_masks=save_masks)
+        t1_scores, multipliers = calculate_tier1_score(orig_path, edit_path, style_path, segmenter=segmenter, save_masks=save_masks)
+        t1_score = t1_scores['final']
+        t1_hair = t1_scores['hair']
+        t1_bg = t1_scores['bg']
     else:
-        t1_score = 0
-        multipliers = {}
+        t1_score, t1_hair, t1_bg = 0, 0, 0
+        multipliers = {'hair': [], 'bg': []}
 
     # Tier 2: Perceptual
     if w2 > 0:
@@ -46,7 +49,7 @@ def evaluate_single_triplet(orig_path, edit_path, style_path, weights, segmenter
     # Weighted Aggregation
     udrs_score = (w1 * t1_score) + (w2 * t2_score) + (w3 * t3_score) + (w4 * t4_score)
     
-    return udrs_score, (t1_score, t2_score, t3_score, t4_score), multipliers
+    return udrs_score, (t1_score, t1_hair, t1_bg, t2_score, t3_score, t4_score), multipliers
 
 def run_pipeline(config_path):
     with open(config_path, 'r') as f:
@@ -87,35 +90,44 @@ def run_pipeline(config_path):
                 
                 score, tiers, multipliers = evaluate_single_triplet(orig_path, edit_path, style_path, weights, segmenter, save_masks=save_masks)
                 results.append(score)
-                t1, t2, t3, t4 = tiers
+                t1, t1_hair, t1_bg, t2, t3, t4 = tiers
                 
-                mult_e = multipliers[0] if len(multipliers) > 0 else 0
-                mult_vbm = multipliers[1] if len(multipliers) > 1 else 0
-                mult_ms = multipliers[2] if len(multipliers) > 2 else 0
-                mult_c = multipliers[3] if len(multipliers) > 3 else 0
-                mult_ced = multipliers[4] if len(multipliers) > 4 else 0
+                hair_mults = multipliers.get('hair', [0]*5)
+                bg_mults = multipliers.get('bg', [0]*5)
                 
                 output_rows.append({
                     'source_path': orig_path,
                     'edit_path': edit_path,
                     'style_path': style_path,
                     'UDRS_score': score,
-                    'Tier1': t1,
+                    'Tier1_Avg': t1,
+                    'Tier1_Hair': t1_hair,
+                    'Tier1_Bg': t1_bg,
                     'Tier2': t2,
                     'Tier3': t3,
                     'Tier4': t4,
-                    'GLCM_E_mult': mult_e,
-                    'VBM_mult': mult_vbm,
-                    'MS_mult': mult_ms,
-                    'GLCM_C_mult': mult_c,
-                    'CED_mult': mult_ced
+                    'Hair_GLCM_C': hair_mults[0] if len(hair_mults) > 0 else 0,
+                    'Hair_CED': hair_mults[1] if len(hair_mults) > 1 else 0,
+                    'Hair_GLCM_E': hair_mults[2] if len(hair_mults) > 2 else 0,
+                    'Hair_VBM': hair_mults[3] if len(hair_mults) > 3 else 0,
+                    'Hair_MS': hair_mults[4] if len(hair_mults) > 4 else 0,
+                    'Bg_GLCM_C': bg_mults[0] if len(bg_mults) > 0 else 0,
+                    'Bg_CED': bg_mults[1] if len(bg_mults) > 1 else 0,
+                    'Bg_GLCM_E': bg_mults[2] if len(bg_mults) > 2 else 0,
+                    'Bg_VBM': bg_mults[3] if len(bg_mults) > 3 else 0,
+                    'Bg_MS': bg_mults[4] if len(bg_mults) > 4 else 0,
                 })
                 
-                print(f"Processed: {edit_path} | T1: {t1:.2f}% | UDRS: {score:.2f}% | Mult: {[round(m,2) for m in multipliers]}")
+                print(f"Processed: {edit_path} | T1_Hair: {t1_hair:.2f}% | T1_Bg: {t1_bg:.2f}% | T1_Avg: {t1:.2f}% | UDRS: {score:.2f}%")
         
         if results:
             with open(output_csv, 'w', newline='') as f:
-                fieldnames = ['source_path', 'edit_path', 'style_path', 'UDRS_score', 'Tier1', 'Tier2', 'Tier3', 'Tier4', 'GLCM_E_mult', 'VBM_mult', 'MS_mult', 'GLCM_C_mult', 'CED_mult']
+                fieldnames = [
+                    'source_path', 'edit_path', 'style_path', 'UDRS_score', 
+                    'Tier1_Avg', 'Tier1_Hair', 'Tier1_Bg', 'Tier2', 'Tier3', 'Tier4', 
+                    'Hair_GLCM_C', 'Hair_CED', 'Hair_GLCM_E', 'Hair_VBM', 'Hair_MS',
+                    'Bg_GLCM_C', 'Bg_CED', 'Bg_GLCM_E', 'Bg_VBM', 'Bg_MS'
+                ]
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
                 writer.writerows(output_rows)
@@ -144,16 +156,23 @@ def run_pipeline(config_path):
         print(f"--------------------------------")
         
         score, tiers, multipliers = evaluate_single_triplet(orig_path, edit_path, style_path, weights, segmenter, save_masks=save_masks)
-        t1, t2, t3, t4 = tiers
+        t1, t1_hair, t1_bg, t2, t3, t4 = tiers
         
         # Visualization
         if plot:
             print("Generating visualization...")
-            plot_rdrs_pentagon(multipliers.copy(), final_score=t1, output_path="udrs_tier1_plot.png")
+            plot_rdrs_pentagon(
+                multipliers.get('hair', [0]*5), 
+                multipliers.get('bg', [0]*5), 
+                final_score=t1, 
+                output_path="udrs_tier1_plot.png"
+            )
         
         # Output
         print(f"\nTier Scores:")
-        print(f"  - Tier 1 (Structural): {t1:.2f}%")
+        print(f"  - Tier 1 (Structural Avg): {t1:.2f}%")
+        print(f"      - Hair Zone:       {t1_hair:.2f}%")
+        print(f"      - Background Zone: {t1_bg:.2f}%")
         print(f"  - Tier 2 (Perceptual): {t2:.2f}%")
         print(f"  - Tier 3 (Semantic):   {t3:.2f}%")
         print(f"  - Tier 4 (Style):      {t4:.2f}%")

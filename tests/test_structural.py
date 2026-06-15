@@ -8,8 +8,8 @@ def test_inverse_mask_identity():
     """
     Inverse Mask Identity Test:
     If an edited image matches the original perfectly outside the mask zone,
-    the preservation-related multipliers (GLCM_E, VBM, MS) must return exactly 1.0,
-    leading to a 100% score on those components.
+    all multipliers in the Background Zone (bg_mults) must return exactly 1.0,
+    leading to a perfect score for that zone.
     """
     # Create synthetic images
     h, w = 100, 100
@@ -28,13 +28,16 @@ def test_inverse_mask_identity():
     cv2.imwrite(edit_path, edited)
     
     # Calculate score (style path doesn't matter for this test of preservation)
-    score, multipliers = calculate_tier1_score(orig_path, edit_path, orig_path, segmenter=segmenter)
+    scores, multipliers = calculate_tier1_score(orig_path, edit_path, orig_path, segmenter=segmenter)
     
-    # Multipliers are [GLCM_E, VBM, MS, GLCM_C, CED] - wait, let's check order in normalization.py
-    # Sequence in normalization.py: ['glcm_e', 'vbm', 'ms', 'glcm_c', 'ced']
-    m_e, m_vbm, m_ms, m_c, m_ced = multipliers
+    bg_mults = multipliers['bg']
+    
+    # Sequence in normalization.py: ['glcm_c', 'ced', 'glcm_e', 'vbm', 'ms']
+    m_c, m_ced, m_e, m_vbm, m_ms = bg_mults
     
     # Preservation multipliers should be exactly 1.0 because image is identical outside mask
+    assert pytest.approx(m_c, rel=1e-5) == 1.0
+    assert pytest.approx(m_ced, rel=1e-5) == 1.0
     assert pytest.approx(m_e, rel=1e-5) == 1.0
     assert pytest.approx(m_vbm, rel=1e-5) == 1.0
     assert pytest.approx(m_ms, rel=1e-5) == 1.0
@@ -50,10 +53,10 @@ def test_backend_interoperability():
     cv2.imwrite(img_path, img)
     
     # Test with MockSegmenter
-    score1, _ = calculate_tier1_score(img_path, img_path, img_path, segmenter=MockSegmenter())
+    scores1, _ = calculate_tier1_score(img_path, img_path, img_path, segmenter=MockSegmenter())
     
     # Test with DummySegmenter
-    score2, _ = calculate_tier1_score(img_path, img_path, img_path, segmenter=DummySegmenter())
+    scores2, _ = calculate_tier1_score(img_path, img_path, img_path, segmenter=DummySegmenter())
     
-    assert isinstance(score1, float)
-    assert isinstance(score2, float)
+    assert isinstance(scores1['final'], float)
+    assert isinstance(scores2['final'], float)

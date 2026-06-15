@@ -1,17 +1,16 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def plot_rdrs_pentagon(multipliers, final_score=None, output_path="rdrs_plot.png"):
+def plot_rdrs_pentagon(hair_multipliers, bg_multipliers, final_score=None, output_path="rdrs_plot.png"):
     """
-    Plots the RDRS pentagon (radar chart) with descriptive labels and interpretation guides.
+    Plots the RDRS pentagon (radar chart) with descriptive labels and interpretation guides for dual zones.
     """
-    # 1. Added brief descriptions using newlines to keep it clean
     labels = [
-        'MS\n(High-Freq Noise)', 
         'GLCM_C\n(Strand Contrast)', 
         'CED\n(Edge Volume)', 
         'GLCM_E\n(Uniformity)', 
-        'VBM\n(Sharpness)'
+        'VBM\n(Sharpness)',
+        'MS\n(High-Freq Noise)'
     ]
     num_vars = len(labels)
 
@@ -19,8 +18,8 @@ def plot_rdrs_pentagon(multipliers, final_score=None, output_path="rdrs_plot.png
     angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
 
     # The plot is circular, so we need to "complete the loop"
-    multipliers = multipliers[-1:] + multipliers[:-1] 
-    multipliers += multipliers[:1]
+    hair_mults = hair_multipliers + hair_multipliers[:1]
+    bg_mults = bg_multipliers + bg_multipliers[:1]
     angles += angles[:1]
 
     # Baseline (all 1.0)
@@ -29,16 +28,20 @@ def plot_rdrs_pentagon(multipliers, final_score=None, output_path="rdrs_plot.png
     # Create figure
     fig, ax = plt.subplots(figsize=(10, 8), subplot_kw=dict(polar=True))
     
-    # 2. Squeeze the polar plot to the left to make room for legends/text on the right
+    # Squeeze the polar plot to the left to make room for legends/text on the right
     fig.subplots_adjust(left=0.05, right=0.65)
     
     # Draw the baseline
-    ax.plot(angles, baseline, color='blue', linewidth=2, linestyle='dashed', label='Original Baseline')
+    ax.plot(angles, baseline, color='blue', linewidth=2, linestyle='dashed', label='Baseline (Original/Style)')
     ax.fill(angles, baseline, color='blue', alpha=0.1)
 
-    # Draw the edited image multipliers
-    ax.plot(angles, multipliers, color='red', linewidth=2, label='Edited Realism')
-    ax.fill(angles, multipliers, color='red', alpha=0.25)
+    # Draw the Hair Zone multipliers
+    ax.plot(angles, hair_mults, color='red', linewidth=2, label='Hair Zone (vs Style)')
+    ax.fill(angles, hair_mults, color='red', alpha=0.25)
+
+    # Draw the Background Zone multipliers
+    ax.plot(angles, bg_mults, color='green', linewidth=2, label='Background Zone (vs Original)')
+    ax.fill(angles, bg_mults, color='green', alpha=0.25)
 
     # Fix axis to go in the right order and start at the top
     ax.set_theta_offset(np.pi / 2)
@@ -47,37 +50,29 @@ def plot_rdrs_pentagon(multipliers, final_score=None, output_path="rdrs_plot.png
     # Draw axis lines for each angle and label
     ax.set_thetagrids(np.degrees(angles[:-1]), labels)
 
-    # 3. Add the legend (now safely inside the figure bounds)
-    ax.legend(loc='upper right', bbox_to_anchor=(1.4, 1.1))
-    plt.title("RDRS Feature Comparison", size=20, y=1.1)
+    # Add the legend
+    ax.legend(loc='upper right', bbox_to_anchor=(1.45, 1.15))
+    plt.title("RDRS 5x2 Symmetric Feature Comparison", size=18, y=1.1)
 
-    # 4. Add the interpretation text box
+    # Add the interpretation text box
     score_text = f"Final Score: {final_score:.1f}%\n\n" if final_score is not None else ""
     
     info_text = (
         f"{score_text}"
         "How to read this chart:\n"
-        "Blue Line (1.0) = Original Image\n\n"
-        "Style Indicators (Right Side):\n"
-        "• CED & GLCM_C\n"
-        "  > 1.0: Added volume/texture\n"
-        "  < 1.0: Smoothed/straightened\n\n"
-        "Quality Constraints (Left Side):\n"
-        "• VBM (Sharpness)\n"
-        "  > 1.0: Over-sharpened / Crispy\n"
-        "  < 1.0: Unnaturally blurry\n"
-        "• MS (Noise)\n"
-        "  > 1.0: Added grain / artifacts\n"
-        "  < 1.0: Lost natural texture\n"
-        "• GLCM_E (Uniformity)\n"
-        "  > 1.0: Too perfect / plastic wig\n"
-        "  < 1.0: Overly chaotic"
+        "Blue Line (1.0) = Baseline\n\n"
+        "Zones:\n"
+        "• Red (Hair) should match Style\n"
+        "• Green (Background) should match Original\n\n"
+        "Interpretation:\n"
+        "• > 1.0: Added volume/texture/noise\n"
+        "• < 1.0: Smoothed/blurred/loss of detail\n"
     )
     
     # Place the text box on the right side of the figure
-    fig.text(0.70, 0.3, info_text, fontsize=11, va='center', ha='left', 
+    fig.text(0.70, 0.4, info_text, fontsize=11, va='center', ha='left', 
              bbox=dict(boxstyle='round,pad=0.8', facecolor='#f8f9fa', edgecolor='#ced4da', alpha=0.9))
 
-    plt.savefig(output_path, bbox_inches='tight') # bbox_inches='tight' prevents any accidental cropping
+    plt.savefig(output_path, bbox_inches='tight')
     print(f"Visualization saved to {output_path}")
     plt.close()

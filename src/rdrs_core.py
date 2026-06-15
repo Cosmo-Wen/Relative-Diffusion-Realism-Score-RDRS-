@@ -1,9 +1,9 @@
 import cv2
 import os
 import numpy as np
-from src.features import extract_all_features, extract_real_features, extract_style_features
-from src.normalization import get_multipliers
-from src.aggregation import get_rdrs_score, get_rdrs_separated_scores
+from src.features import get_masked_metrics
+from src.normalization import get_zone_multipliers
+from src.aggregation import get_rdrs_score
 
 def save_mask_overlay(image_bgr, mask, name, output_dir="debug_masks"):
     """
@@ -27,7 +27,7 @@ def save_mask_overlay(image_bgr, mask, name, output_dir="debug_masks"):
 
 def calculate_tier1_score(orig_path, edit_path, style_path, segmenter=None, save_masks=False):
     """
-    Computes Tier 1: Structural Realism Score using independent Triple Mask-Aware evaluation.
+    Computes Tier 1: Structural Realism Score using the 5x2 Symmetric Model.
     """
     # Load images
     edit_img = cv2.imread(edit_path)
@@ -38,35 +38,51 @@ def calculate_tier1_score(orig_path, edit_path, style_path, segmenter=None, save
     if orig_img is None: raise ValueError(f"Could not read image at {orig_path}")
     if style_img is None: raise ValueError(f"Could not read style image at {style_path}")
         
-    mask_edit = None
-    mask_orig = None
-    mask_style = None
+    edit_gray = cv2.cvtColor(edit_img, cv2.COLOR_BGR2GRAY)
+    orig_gray = cv2.cvtColor(orig_img, cv2.COLOR_BGR2GRAY)
+    style_gray = cv2.cvtColor(style_img, cv2.COLOR_BGR2GRAY)
+
+    mask_edit_hair = None
+    mask_edit_bg = None
+    mask_orig_bg = None
+    mask_style_hair = None
     
     if segmenter is not None:
-        # Generate independent masks for all three
-        mask_edit = segmenter.segment(edit_img)
-        mask_orig = segmenter.segment(orig_img)
-        mask_style = segmenter.segment(style_img)
+        # Generate independent hair masks
+        mask_edit_hair = segmenter.segment(edit_img)
+        mask_orig_hair = segmenter.segment(orig_img)
+        mask_style_hair = segmenter.segment(style_img)
+        
+        # Invert for background
+        mask_edit_bg = cv2.bitwise_not(mask_edit_hair)
+        mask_orig_bg = cv2.bitwise_not(mask_orig_hair)
         
         if save_masks:
             stem = os.path.basename(edit_path).split('.')[0]
-            save_mask_overlay(orig_img, mask_orig, f"{stem}_orig_zone")
-            save_mask_overlay(edit_img, mask_edit, f"{stem}_edit_zone")
-            save_mask_overlay(style_img, mask_style, f"{stem}_style_zone")
+            save_mask_overlay(orig_img, mask_orig_bg, f"{stem}_orig_bg_zone")
+            save_mask_overlay(edit_img, mask_edit_bg, f"{stem}_edit_bg_zone")
+            save_mask_overlay(edit_img, mask_edit_hair, f"{stem}_edit_hair_zone")
+            save_mask_overlay(style_img, mask_style_hair, f"{stem}_style_hair_zone")
         
-    # Extract features using independent boundaries
-    # Quality Axes (Preservation): Compare non-hair zones
-    orig_features = extract_real_features(orig_path, mask=mask_orig)
-    edit_real_features = extract_real_features(edit_path, mask=mask_edit)
+    # --- ZONE 1: HAIR (Foreground) ---
+    # Baseline: Style Image
+    style_hair_features = get_masked_metrics(style_gray, mask=mask_style_hair)
+    edit_hair_features = get_masked_metrics(edit_gray, mask=mask_edit_hair)
+    hair_multipliers = get_zone_multipliers(style_hair_features, edit_hair_features)
+    hair_score = get_rdrs_score(hair_multipliers)
+
+    # --- ZONE 2: BACKGROUND (Inverse Mask) ---
+    # Baseline: Original Image
+    orig_bg_features = get_masked_metrics(orig_gray, mask=mask_orig_bg)
+    edit_bg_features = get_masked_metrics(edit_gray, mask=mask_edit_bg)
+    bg_multipliers = get_zone_multipliers(orig_bg_features, edit_bg_features)
+    bg_score = get_rdrs_score(bg_multipliers)
     
-    # Style Axes (Matching): Compare hair zones
-    style_features = extract_style_features(style_path, mask=mask_style)
-    edit_style_features = extract_style_features(edit_path, mask=mask_edit)
+    # --- FINAL SCORE ---
+    final_score = (hair_score + bg_score) / 2.0
     
-    # Merge edited features for normalization
-    edit_features = {**edit_real_features, **edit_style_features}
+    # Package results
+    scores = {'final': final_score, 'hair': hair_score, 'bg': bg_score}
+    multipliers = {'hair': hair_multipliers, 'bg': bg_multipliers}
     
-    multipliers = get_multipliers(orig_features, edit_features, style_features)
-    score = get_rdrs_score(multipliers)
-    
-    return score, multipliers
+    return scores, multipliers
