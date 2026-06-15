@@ -60,7 +60,12 @@ def calculate_tier1_score(orig_path, edit_path, style_path, segmenter=None, save
         # FIX: Shared Preservation Zone (Intersection)
         # Guarantees we only evaluate background pixels that are background in BOTH images.
         # This prevents mismatch if the edited hair expands or shrinks.
-        safe_bg_mask = cv2.bitwise_and(mask_orig_bg, mask_edit_bg)
+        if mask_orig_bg.shape != mask_edit_bg.shape:
+            mask_edit_bg_resized = cv2.resize(mask_edit_bg, (mask_orig_bg.shape[1], mask_orig_bg.shape[0]), interpolation=cv2.INTER_NEAREST)
+        else:
+            mask_edit_bg_resized = mask_edit_bg
+            
+        safe_bg_mask = cv2.bitwise_and(mask_orig_bg, mask_edit_bg_resized)
         
         if save_masks:
             stem = os.path.basename(edit_path).split('.')[0]
