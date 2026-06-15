@@ -57,10 +57,14 @@ def calculate_tier1_score(orig_path, edit_path, style_path, segmenter=None, save
         mask_edit_bg = cv2.bitwise_not(mask_edit_hair)
         mask_orig_bg = cv2.bitwise_not(mask_orig_hair)
         
+        # FIX: Shared Preservation Zone (Intersection)
+        # Guarantees we only evaluate background pixels that are background in BOTH images.
+        # This prevents mismatch if the edited hair expands or shrinks.
+        safe_bg_mask = cv2.bitwise_and(mask_orig_bg, mask_edit_bg)
+        
         if save_masks:
             stem = os.path.basename(edit_path).split('.')[0]
-            save_mask_overlay(orig_img, mask_orig_bg, f"{stem}_orig_bg_zone")
-            save_mask_overlay(edit_img, mask_edit_bg, f"{stem}_edit_bg_zone")
+            save_mask_overlay(orig_img, safe_bg_mask, f"{stem}_shared_bg_zone")
             save_mask_overlay(edit_img, mask_edit_hair, f"{stem}_edit_hair_zone")
             save_mask_overlay(style_img, mask_style_hair, f"{stem}_style_hair_zone")
         
@@ -71,10 +75,10 @@ def calculate_tier1_score(orig_path, edit_path, style_path, segmenter=None, save
     hair_multipliers = get_zone_multipliers(style_hair_features, edit_hair_features)
     hair_score = get_rdrs_score(hair_multipliers)
 
-    # --- ZONE 2: BACKGROUND (Inverse Mask) ---
+    # --- ZONE 2: BACKGROUND (Shared Preservation Zone) ---
     # Baseline: Original Image
-    orig_bg_features = get_masked_metrics(orig_gray, mask=mask_orig_bg)
-    edit_bg_features = get_masked_metrics(edit_gray, mask=mask_edit_bg)
+    orig_bg_features = get_masked_metrics(orig_gray, mask=safe_bg_mask if segmenter else None)
+    edit_bg_features = get_masked_metrics(edit_gray, mask=safe_bg_mask if segmenter else None)
     bg_multipliers = get_zone_multipliers(orig_bg_features, edit_bg_features)
     bg_score = get_rdrs_score(bg_multipliers)
     

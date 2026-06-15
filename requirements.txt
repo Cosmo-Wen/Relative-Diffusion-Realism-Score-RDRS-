@@ -9,3 +9,4 @@ torchvision
 open-clip-torch
 transformers
 evaluate
+google-genai
